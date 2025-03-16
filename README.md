@@ -105,8 +105,8 @@ For support, please contact the plugin developer.
 
 ## Credits
 
-Developed by MemberFun Development Team.
+Developed by Mike.
 
 ---
 
-Last Updated: April 15, 2023
+Last Updated: Mar 16, 2025
