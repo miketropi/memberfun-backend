@@ -13,6 +13,14 @@ if (!defined('ABSPATH')) {
  * Register custom REST API endpoints
  */
 function memberfun_semina_register_api_routes() {
+
+    // get seminars 
+    register_rest_route('memberfun/v1', '/seminars', array(
+        'methods' => 'GET',
+        'callback' => 'memberfun_semina_get_seminars',
+        'permission_callback' => '__return_true',
+    ));
+
     // Register route for upcoming seminars
     register_rest_route('memberfun/v1', '/seminars/upcoming', array(
         'methods' => 'GET',
@@ -88,6 +96,62 @@ function memberfun_semina_register_api_routes() {
     ));
 }
 
+// memberfun_semina_get_seminars
+function memberfun_semina_get_seminars($request) {
+    $limit = $request->get_param('limit');
+    $offset = $request->get_param('offset');
+    $today = date('Y-m-d');
+    $search = $request->get_param('search');
+    // $host = $request->get_param('host');
+    
+    $args = array(
+        'post_type' => 'memberfun_semina',
+        'posts_per_page' => $limit,
+        'offset' => $offset,
+        'post_status' => 'publish',
+        's' => $search, 
+        'meta_key' => '_memberfun_semina_date',
+        'orderby' => 'meta_value',
+        'order' => 'DESC',
+        // 'meta_query' => array(
+        //     array(
+        //         'key' => '_memberfun_semina_host',
+        //         'value' => $host,
+        //     ),
+        // ),
+    );
+
+    $query = new WP_Query($args);
+    $seminars = array();
+    
+    if ($query->have_posts()) {
+        while ($query->have_posts()) {
+            $query->the_post();
+            $seminars[] = memberfun_semina_prepare_seminar_for_response(get_the_ID());
+        }
+        wp_reset_postdata();
+    }
+
+    // Get total count for pagination
+    $total_args = array(
+        'post_type' => 'memberfun_semina',
+        'posts_per_page' => -1,
+        'post_status' => 'publish',
+        'fields' => 'ids',
+    );
+    $total_query = new WP_Query($total_args);
+    $total = $total_query->found_posts;
+
+    $response = array(
+        'seminars' => $seminars,
+        'total' => $total,
+        'pages' => ceil($total / $limit),
+        'page' => floor($offset / $limit) + 1,
+    );
+
+    return rest_ensure_response($response);
+}
+
 /**
  * Get upcoming seminars
  * 
@@ -98,6 +162,7 @@ function memberfun_semina_get_upcoming_seminars($request) {
     $limit = $request->get_param('limit');
     $offset = $request->get_param('offset');
     $today = date('Y-m-d');
+    $search = $request->get_param('search');
     
     // Get seminars with date >= today, ordered by date
     $args = array(
@@ -105,6 +170,7 @@ function memberfun_semina_get_upcoming_seminars($request) {
         'posts_per_page' => $limit,
         'offset' => $offset,
         'post_status' => 'publish',
+        's' => $search,
         'meta_query' => array(
             array(
                 'key' => '_memberfun_semina_date',
@@ -115,7 +181,7 @@ function memberfun_semina_get_upcoming_seminars($request) {
         ),
         'meta_key' => '_memberfun_semina_date',
         'orderby' => 'meta_value',
-        'order' => 'ASC',
+        'order' => 'DESC',
     );
     
     $query = new WP_Query($args);
