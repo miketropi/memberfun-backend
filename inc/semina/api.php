@@ -94,6 +94,53 @@ function memberfun_semina_register_api_routes() {
             ),
         ),
     ));
+
+    register_rest_route('memberfun/v1', '/seminars/(?P<id>\d+)/rating', array(
+        'methods' => 'POST',
+        'callback' => 'memberfun_semina_add_rating',
+        'permission_callback' => 'memberfun_semina_add_rating_permission',
+        'args' => array(
+            'id' => array(
+                'required' => true,
+                'validate_callback' => function($param) {
+                    return is_numeric($param);
+                },
+                'sanitize_callback' => 'absint',
+            ),
+            'ratingData' => array(
+                'required' => true,
+            ),
+        ),
+    ));
+}
+
+function memberfun_semina_add_rating_permission($request) {
+    return current_user_can('edit_posts');
+}
+
+function memberfun_semina_add_rating($request) {
+    
+    $seminar_post_id = $request->get_param('id');
+    $rating_data = $request->get_param('ratingData');
+    $user_id = get_current_user_id();
+
+    // return rest_ensure_response([
+    //     'seminar_post_id' => $seminar_post_id,
+    //     'rating_data' => $rating_data,
+    //     'user_id' => $user_id,
+    // ]);
+
+    $rating_data = array(
+        'rating_user_id' => $user_id,
+        'rating_data' => $rating_data,
+    );
+
+    $ratings = get_post_meta($seminar_post_id, '_memberfun_semina_ratings', true);
+    $ratings = $ratings ? $ratings : [];
+    $ratings[] = $rating_data;
+    update_post_meta($seminar_post_id, '_memberfun_semina_ratings', $ratings);
+
+    return rest_ensure_response($rating_data);
 }
 
 // memberfun_semina_get_seminars
@@ -489,6 +536,18 @@ function memberfun_semina_prepare_seminar_for_response($seminar_id) {
     $location = get_post_meta($seminar_id, '_memberfun_semina_location', true);
     $capacity = get_post_meta($seminar_id, '_memberfun_semina_capacity', true);
     $documents = get_post_meta($seminar_id, '_memberfun_semina_documents', true);
+    $ratings = get_post_meta($seminar_id, '_memberfun_semina_ratings', true);
+
+    $ratings = $ratings ? array_map(function($rating) {
+        $rating_user_id = $rating['rating_user_id'];
+        $userinfo = get_user_by('id', $rating_user_id);
+        $rating['user_display_name'] = $userinfo->display_name;
+        $rating['user_avatar'] = get_avatar_url($userinfo->ID);
+        $rating['user_email'] = $userinfo->user_email;
+        return $rating;
+    }, $ratings) : [];
+    $rating_count = count($ratings);
+    
     
     // Format date and time
     $formatted_date = !empty($date) ? date_i18n(get_option('date_format'), strtotime($date)) : '';
@@ -537,6 +596,8 @@ function memberfun_semina_prepare_seminar_for_response($seminar_id) {
         'permalink' => get_permalink($seminar_id),
         'ical_url' => rest_url('memberfun/v1/seminars/' . $seminar_id . '/ical'),
         'featured_image' => get_the_post_thumbnail_url($seminar_id, 'large'),
+        'rating_count' => $rating_count,
+        'ratings' => $ratings,
     );
     
     return $response;
