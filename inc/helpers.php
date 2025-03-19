@@ -106,3 +106,10 @@ function memberfun_generate_jwt_token_by_user_id($user_id) {
         );
     }
 }
+
+// get first admin id
+function memberfun_get_first_admin_id() {
+    $admins = get_users(['role' => 'administrator']);
+    return $admins[0]->ID;
+}
+

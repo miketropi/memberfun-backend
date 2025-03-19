@@ -30,6 +30,104 @@ function memberfun_semina_register_meta_boxes() {
         'normal',
         'high'
     );
+
+    # add custom meta box for seminar ratings
+    add_meta_box(
+        'memberfun_semina_ratings',
+        __('Seminar Ratings', 'memberfun-backend'),
+        'memberfun_semina_ratings_meta_box_callback',
+        'memberfun_semina',
+        'normal',
+        'high'
+    );
+}
+
+/**
+ * Callback function for the seminar ratings meta box
+ * 
+ * @param WP_Post $post The post object
+ */
+function memberfun_semina_ratings_meta_box_callback($post) {
+    // Add nonce for security
+    wp_nonce_field('memberfun_semina_save_meta', 'memberfun_semina_meta_nonce');
+
+    // Get the current ratings
+    $ratings = get_post_meta($post->ID, '_memberfun_semina_ratings', true);
+    if (!is_array($ratings)) {
+        $ratings = array();
+    }
+
+    # validate if ratings is empty
+    if (empty($ratings)) {
+        echo '<p>' . __('No ratings yet', 'memberfun-backend') . '</p>';
+        return;
+    }
+
+    ob_start();
+    
+    // Display the ratings
+    echo '<ul class="memberfun-semina-rating-list">';
+    foreach ($ratings as $rating) {
+        $rating_user_id = $rating['rating_user_id'];
+        $rating_user_info = get_user_by('id', $rating_user_id);
+        $rating_user_display_name = $rating_user_info->display_name;
+        $rating_user_email = $rating_user_info->user_email;
+        $rating_user_avatar = get_avatar_url($rating_user_id);
+        $rating_data = $rating['rating_data']; // ["skill": "5", "quality": "5", "usefulness": "5"]
+        // $rating_point_id = $rating['point_id'];
+        
+        ?>
+        <li class="rating-list-item rating-list-item-<?php echo esc_attr($rating_user_id); ?>">
+            <div class="rating-card">
+                <div class="rating-header">
+                    <div class="rating-avatar">
+                        <img src="<?php echo esc_url($rating_user_avatar); ?>" 
+                             alt="<?php echo esc_attr($rating_user_display_name); ?>"
+                             class="avatar-img">
+                    </div>
+                    <div class="rating-user">
+                        <h4 class="user-name">
+                            <?php echo esc_html($rating_user_display_name); ?>
+                        </h4>
+                        <span class="user-email"><?php echo esc_html($rating_user_email); ?></span>
+                    </div>
+                </div>
+
+                <div class="rating-scores">
+                    <?php
+                    $rating_categories = [
+                        'skill' => __('Skill', 'memberfun-backend'),
+                        'quality' => __('Quality', 'memberfun-backend'), 
+                        'usefulness' => __('Usefulness', 'memberfun-backend')
+                    ];
+                    
+                    foreach ($rating_categories as $key => $label): ?>
+                        <div class="score-item">
+                            <span class="score-label"><?php echo esc_html($label); ?></span>
+                            <div class="score-value">
+                                <span class="score-number"><?php echo esc_html($rating_data[$key]); ?></span>
+                                <span class="score-max">/5</span>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+
+                <div class="rating-actions">
+                    <button 
+                        type="button" 
+                        data-user-id="<?php echo esc_attr($rating_user_id); ?>"
+                        data-post-id="<?php echo esc_attr($post->ID); ?>"
+                        class="button button-small delete-rating memberfun-delete-rating">
+                        <?php _e('Delete Rating', 'memberfun-backend'); ?>
+                    </button>
+                </div>
+            </div>
+        </li>
+        <?php
+    }
+    echo '</ul>';
+    $ratings_html = ob_get_clean();
+    echo $ratings_html;
 }
 
 /**

@@ -40,3 +40,31 @@ require_once MEMBERFUN_BACKEND_DIR . 'inc/social-auth.php';
 require_once MEMBERFUN_BACKEND_DIR . 'inc/points-system/index.php';
 require_once MEMBERFUN_BACKEND_DIR . 'inc/semina/index.php';
 require_once MEMBERFUN_BACKEND_DIR . 'inc/comments/index.php';
+
+// Enqueue scripts
+function memberfun_backend_enqueue_scripts() {
+    wp_enqueue_script(
+        'memberfun-backend-script',
+        MEMBERFUN_BACKEND_URL . 'assets/memberfun.js',
+        array('jquery'),
+        MEMBERFUN_BACKEND_VERSION,
+        true
+    );
+
+    wp_enqueue_style(
+        'memberfun-backend-style',
+        MEMBERFUN_BACKEND_URL . 'assets/memberfun.css',
+        array(),
+        MEMBERFUN_BACKEND_VERSION
+    );
+
+    wp_localize_script(
+        'memberfun-backend-script',
+        'memberfun_backend_vars',
+        array(
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('memberfun_backend_nonce')
+        )
+    );
+}
+add_action('admin_enqueue_scripts', 'memberfun_backend_enqueue_scripts');

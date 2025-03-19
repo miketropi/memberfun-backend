@@ -480,3 +480,30 @@ function memberfun_semina_bulk_action_admin_notice() {
     }
 }
 add_action('admin_notices', 'memberfun_semina_bulk_action_admin_notice'); 
+
+# make ajax function memberfun_delete_rating_ajax
+function memberfun_delete_rating_ajax() {
+    // get data from fetch formData
+    $data = wp_unslash($_POST);
+    $user_id = (int) $data['user_id'];
+    $post_id = (int) $data['post_id'];
+
+    // delete rating
+    $rating = get_post_meta($post_id, '_memberfun_semina_ratings', true);
+    $rating = array_filter($rating, function($rating) use ($user_id) {
+        return $rating['rating_user_id'] !== $user_id;
+    });
+
+    update_post_meta($post_id, '_memberfun_semina_ratings', $rating);
+
+    wp_send_json_success(
+        array(
+            'success' => true,
+            'message' => 'Rating deleted successfully',
+            'rating' => $rating,
+        )
+    );
+}
+
+add_action('wp_ajax_memberfun_delete_rating_ajax', 'memberfun_delete_rating_ajax');
+add_action('wp_ajax_nopriv_memberfun_delete_rating_ajax', 'memberfun_delete_rating_ajax');
