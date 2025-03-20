@@ -491,6 +491,17 @@ function memberfun_delete_rating_ajax() {
     // delete rating
     $rating = get_post_meta($post_id, '_memberfun_semina_ratings', true);
     $rating = array_filter($rating, function($rating) use ($user_id) {
+
+        if ($rating['rating_user_id'] === $user_id) {
+            // point_id
+            $point_id = $rating['point_id'];
+
+            // delete point
+            if ($point_id) {
+                memberfun_delete_points_transaction($point_id);
+            }
+        }
+
         return $rating['rating_user_id'] !== $user_id;
     });
 

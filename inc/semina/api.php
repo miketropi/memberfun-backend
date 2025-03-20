@@ -112,10 +112,58 @@ function memberfun_semina_register_api_routes() {
             ),
         ),
     ));
+
+    register_rest_route('memberfun/v1', '/seminars/(?P<id>\d+)/ratings', array(
+        'methods' => 'GET',
+        'callback' => 'memberfun_semina_get_ratings',
+        'permission_callback' => '__return_true',
+        'args' => array(
+            'id' => array(
+                'required' => true,
+                'validate_callback' => function($param) {
+                    return is_numeric($param);
+                },
+                'sanitize_callback' => 'absint',
+            ),
+        ),
+    ));
+    
 }
 
 function memberfun_semina_add_rating_permission($request) {
     return current_user_can('edit_posts');
+}
+
+# memberfun_semina_get_ratings
+function memberfun_semina_get_ratings($request) {
+    $seminar_post_id = $request->get_param('id');
+    $ratings = memberfun_semina_get_ratings_by_seminar_id($seminar_post_id);
+
+    return rest_ensure_response($ratings);
+}
+
+# get seminar ratings by seminar id
+function memberfun_semina_get_ratings_by_seminar_id($seminar_post_id) {
+    $ratings = get_post_meta($seminar_post_id, '_memberfun_semina_ratings', true);
+
+    # is empty then return empty
+    if (empty($ratings)) {
+        return;
+    }
+
+    $ratings = array_values($ratings);
+
+    return array_map(function($rating) {
+
+        $rating_user_id = $rating['rating_user_id'];
+        // get user info
+        $user_info = get_user_by('id', $rating_user_id);
+        $rating['user_display_name'] = $user_info->display_name;
+        $rating['user_email'] = $user_info->user_email;
+        $rating['user_avatar'] = get_avatar_url($rating_user_id);
+
+        return $rating;
+    }, $ratings);
 }
 
 # validate current user had rating for this seminar
@@ -142,6 +190,9 @@ function memberfun_semina_add_rating($request) {
     $seminar_post_id = $request->get_param('id');
     $rating_data = $request->get_param('ratingData');
     $user_id = get_current_user_id();
+
+    $host_id = get_post_meta($seminar_post_id, '_memberfun_semina_host', true);
+    $host_user_id = (int) $host_id;
 
     if (memberfun_semina_validate_host($seminar_post_id)) {
         return rest_ensure_response([
@@ -172,7 +223,8 @@ function memberfun_semina_add_rating($request) {
 
     // $note = $user_name . ' (' . $user_email . ') had rating for your seminar #' . $seminar_post_id . ' - ' . $post_title . ' - ' . $sum_rating . ' points';
     $note = "{ $user_name } ($user_email) had rating for your seminar: $post_title (#$seminar_post_id) - total: $sum_rating points";
-    $transaction_id = memberfun_add_points($user_id, $sum_rating, $note, memberfun_get_first_admin_id());
+
+    $transaction_id = memberfun_add_points($host_user_id, $sum_rating, $note, memberfun_get_first_admin_id());
 
     $rating_data = array(
         'success' => true,
@@ -582,7 +634,7 @@ function memberfun_semina_prepare_seminar_for_response($seminar_id) {
     $location = get_post_meta($seminar_id, '_memberfun_semina_location', true);
     $capacity = get_post_meta($seminar_id, '_memberfun_semina_capacity', true);
     $documents = get_post_meta($seminar_id, '_memberfun_semina_documents', true);
-    $ratings = get_post_meta($seminar_id, '_memberfun_semina_ratings', true);
+    $ratings = memberfun_semina_get_ratings_by_seminar_id($seminar_id);
 
     $ratings = $ratings ? array_map(function($rating) {
         $rating_user_id = $rating['rating_user_id'];

@@ -64,6 +64,27 @@ function memberfun_add_points($user_id, $points, $note = '', $admin_user_id = 0)
     return $transaction_id;
 }
 
+// send mail after add points via hook memberfun_points_added
+add_action('memberfun_points_added', 'memberfun_send_mail_after_add_points', 10, 4);
+function memberfun_send_mail_after_add_points($user_id, $points, $transaction_id, $note) {
+    $user_info = get_user_by('id', $user_id);
+    $user_email = $user_info->user_email;
+    $user_name = $user_info->display_name;
+
+    $subject = 'MemberFun - Points Added';
+    $message = '
+        <p>Hi ' . $user_name . ',</p>
+        <p>You have received <strong>' . $points . ' points</strong> in your MemberFun account.</p>
+        <p>Reason: ' . $note . '</p>
+        <p>Your transaction ID is: ' . $transaction_id . '</p>
+        <p>Thank you for being a valued member!</p>
+    ';
+
+    $headers = array('Content-Type: text/html; charset=UTF-8');
+
+    wp_mail($user_email, $subject, $message, $headers);
+}
+
 /**
  * Deduct points from a user
  * 
@@ -309,3 +330,13 @@ function memberfun_count_transactions($args = array()) {
     
     return (int) $count;
 } 
+
+// memberfun_delete_points_transaction
+function memberfun_delete_points_transaction($transaction_id) {
+    global $wpdb;
+    
+    $table_name = memberfun_points_get_table_name();
+    $wpdb->delete($table_name, array('id' => $transaction_id));
+
+    return true;
+}
